@@ -2,6 +2,7 @@ package com.example.jadebook.controller;
 
 import com.example.jadebook.dto.CommentDTO;
 import com.example.jadebook.dto.PostDTO;
+import com.example.jadebook.dto.PostResponseDTO;
 import com.example.jadebook.entity.Comments;
 import com.example.jadebook.entity.Post;
 import com.example.jadebook.entity.Users;
@@ -32,17 +33,16 @@ public class PostController {
     private PostService postService;
 
     @Autowired
-    private UserMapper userMapper; // 注入 UserMapper 用於檢查用戶是否存在
+    private UserMapper userMapper;
 
     @Autowired
-    private CommentService commentService; // 注入 CommentService
+    private CommentService commentService;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
     @PostMapping
     public ResponseEntity<Map<String, Object>> createPost(@RequestBody PostDTO postDTO) throws IOException {
-        // 從 Spring Security 上下文中獲取 userId
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof UserDetails)) {
             Map<String, Object> error = new HashMap<>();
@@ -63,7 +63,6 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 檢查用戶是否存在
         Users user = userMapper.selectById(userId);
         if (user == null) {
             Map<String, Object> error = new HashMap<>();
@@ -72,16 +71,14 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 處理圖片（Base64 編碼）
         String imagePath = null;
         if (postDTO.getImage() != null && !postDTO.getImage().isEmpty()) {
-            // 移除 Base64 前綴（例如 "data:image/jpeg;base64,"）
             String base64Image = postDTO.getImage();
             if (base64Image.contains(",")) {
                 base64Image = base64Image.split(",")[1];
             }
             byte[] imageBytes = Base64.getDecoder().decode(base64Image);
-            String fileName = UUID.randomUUID().toString() + ".jpg"; // 假設圖片為 JPG 格式
+            String fileName = UUID.randomUUID().toString() + ".jpg";
             File dest = new File(uploadDir + File.separator + fileName);
             if (!dest.getParentFile().exists()) {
                 dest.getParentFile().mkdirs();
@@ -92,7 +89,6 @@ public class PostController {
             imagePath = "/uploads/" + fileName;
         }
 
-        // 調用服務層創建發文
         Post post = postService.createPost(userId, postDTO.getContent(), imagePath);
 
         Map<String, Object> response = new HashMap<>();
@@ -101,10 +97,18 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    // 取得全部發文（不再支援 includeComments）
     @GetMapping
-    public ResponseEntity<List<PostDTO>> getAllPosts() {
-        List<PostDTO> posts = postService.getAllPosts();
+    public ResponseEntity<List<PostResponseDTO>> getAllPosts() {
+        List<PostResponseDTO> posts = postService.getAllPosts();
         return ResponseEntity.ok(posts);
+    }
+
+    // 按 post_id 獲取留言
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<List<CommentDTO>> getCommentsByPostId(@PathVariable Long postId) {
+        List<CommentDTO> comments = commentService.getCommentsByPostId(postId);
+        return ResponseEntity.ok(comments);
     }
 
     @PutMapping("/{postId}")
@@ -131,7 +135,6 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 檢查用戶是否存在
         Users user = userMapper.selectById(userId);
         if (user == null) {
             Map<String, Object> error = new HashMap<>();
@@ -188,7 +191,6 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 檢查用戶是否存在
         Users user = userMapper.selectById(userId);
         if (user == null) {
             Map<String, String> error = new HashMap<>();
@@ -204,12 +206,10 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
-    // 新增留言端點
     @PostMapping("/{postId}/comments")
     public ResponseEntity<Map<String, Object>> createComment(
             @PathVariable Long postId,
             @RequestBody Map<String, String> requestBody) {
-        // 從 Spring Security 上下文中獲取 userId
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (!(principal instanceof UserDetails)) {
             Map<String, Object> error = new HashMap<>();
@@ -230,7 +230,6 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 檢查用戶是否存在
         Users user = userMapper.selectById(userId);
         if (user == null) {
             Map<String, Object> error = new HashMap<>();
@@ -239,7 +238,6 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 獲取留言內容
         String content = requestBody.get("content");
         if (content == null || content.trim().isEmpty()) {
             Map<String, Object> error = new HashMap<>();
@@ -248,10 +246,8 @@ public class PostController {
             return ResponseEntity.status(400).body(error);
         }
 
-        // 創建留言
         Comments comment = commentService.createComment(postId, userId, content);
 
-        // 構建響應
         CommentDTO commentDTO = new CommentDTO();
         commentDTO.setCommentId(comment.getCommentId());
         commentDTO.setPostId(comment.getPostId());

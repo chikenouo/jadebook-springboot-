@@ -1,16 +1,20 @@
-package com.example.jadebook.service;
+package com.example.jadebook.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.example.jadebook.dto.PostDTO;
+import com.example.jadebook.dto.PostResponseDTO;
+import com.example.jadebook.entity.Comments;
 import com.example.jadebook.entity.Post;
 import com.example.jadebook.entity.Users;
+import com.example.jadebook.mapper.CommentMapper;
 import com.example.jadebook.mapper.PostMapper;
 import com.example.jadebook.mapper.UserMapper;
+import com.example.jadebook.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -18,6 +22,9 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private PostMapper postMapper;
+
+    @Autowired
+    private CommentMapper commentMapper;
 
     @Autowired
     private UserMapper userMapper;
@@ -30,16 +37,31 @@ public class PostServiceImpl implements PostService {
         post.setImage(image);
         post.setCreatedAt(LocalDateTime.now());
         postMapper.insert(post);
-        // 確認 createdAt
         System.out.println("PostServiceImpl: Created post with createdAt: " + post.getCreatedAt());
         return post;
     }
 
     @Override
-    public List<PostDTO> getAllPosts() {
+    public List<PostResponseDTO> getAllPosts() {
+        // 查詢所有貼文
         List<Post> posts = postMapper.selectList(new QueryWrapper<>());
+
+        // 一次性查詢所有貼文的留言數量
+        List<Map<String, Object>> commentCounts = commentMapper.selectMaps(
+                new QueryWrapper<Comments>()
+                        .select("post_id", "COUNT(*) as count")
+                        .groupBy("post_id")
+        );
+
+        // 將查詢結果轉換為 Map<Long, Integer>
+        Map<Long, Integer> commentCountMap = commentCounts.stream()
+                .collect(Collectors.toMap(
+                        map -> ((Number) map.get("post_id")).longValue(), // post_id 轉為 Long
+                        map -> ((Number) map.get("count")).intValue()     // count 轉為 int
+                ));
+
         return posts.stream().map(post -> {
-            PostDTO postDTO = new PostDTO();
+            PostResponseDTO postDTO = new PostResponseDTO();
             postDTO.setPostId(post.getPostId());
             postDTO.setUserId(post.getUserId());
             postDTO.setContent(post.getContent());
@@ -51,6 +73,9 @@ public class PostServiceImpl implements PostService {
             if (user != null) {
                 postDTO.setUserName(user.getUserName());
             }
+
+            // 從 commentCountMap 中獲取留言數量，默認為 0
+            postDTO.setCommentsCount(commentCountMap.getOrDefault(post.getPostId(), 0));
             return postDTO;
         }).collect(Collectors.toList());
     }
