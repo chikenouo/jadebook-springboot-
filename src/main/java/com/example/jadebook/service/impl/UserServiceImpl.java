@@ -49,7 +49,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public String loginUser(String phoneNumber, String password) {
+        System.out.println("Attempting to login with phone number: " + phoneNumber);
         Users user = userMapper.selectOne(new QueryWrapper<Users>().eq("phone_number", phoneNumber));
+        System.out.println("Found user: " + (user != null ? user.getUserId() : "null"));
         if (user == null) {
             throw new RuntimeException("無效的電話號碼或密碼");
         }

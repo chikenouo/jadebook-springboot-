@@ -16,6 +16,6 @@ public class Users {
     private String userName;
     private String email;
     private String password; // 儲存加鹽雜湊後的密碼
-    private String coverImage; // 照片，非必要欄位
+    private String coverImage; // 照片
     private String biography; // 自我介紹
 }
