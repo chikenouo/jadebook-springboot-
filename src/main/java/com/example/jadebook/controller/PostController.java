@@ -111,6 +111,7 @@ public class PostController {
         return ResponseEntity.ok(comments);
     }
 
+    // 修改貼文
     @PutMapping("/{postId}")
     public ResponseEntity<Map<String, Object>> updatePost(
             @PathVariable Long postId,
@@ -169,6 +170,7 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    // 刪除貼文
     @DeleteMapping("/{postId}")
     public ResponseEntity<Map<String, String>> deletePost(@PathVariable Long postId) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -206,6 +208,7 @@ public class PostController {
         return ResponseEntity.ok(response);
     }
 
+    // 新增留言
     @PostMapping("/{postId}/comments")
     public ResponseEntity<Map<String, Object>> createComment(
             @PathVariable Long postId,
